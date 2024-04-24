@@ -90,8 +90,15 @@ impl Manifest {
     }
 
     /// Entries slice.
+    #[inline]
     pub fn entries(&self) -> &[ManifestEntryRef] {
         &self.entries
+    }
+
+    /// Is the manifest for data content.
+    #[inline]
+    pub fn metadata(&self) -> &ManifestMetadata {
+        &self.metadata
     }
 
     /// Constructor from [`ManifestMetadata`] and [`ManifestEntry`]s.
@@ -717,6 +724,12 @@ pub struct ManifestMetadata {
 }
 
 impl ManifestMetadata {
+    /// Type of content files tracked by the manifest.
+    #[inline]
+    pub fn content(&self) -> &ManifestContentType {
+        &self.content
+    }
+
     /// Parse from metadata in avro file.
     pub fn parse(meta: &HashMap<String, Vec<u8>>) -> Result<Self> {
         let schema = {
@@ -848,6 +861,18 @@ impl ManifestEntry {
             self.status,
             ManifestStatus::Added | ManifestStatus::Existing
         )
+    }
+
+    /// Snapshot ID of this manifest entry.
+    #[inline]
+    pub fn snapshot_id(&self) -> Option<i64> {
+        self.snapshot_id.clone()
+    }
+
+    /// Snapshot ID of this manifest entry.
+    #[inline]
+    pub fn file_sequence_number(&self) -> Option<i64> {
+        self.file_sequence_number.clone()
     }
 
     /// Content type of this manifest entry.

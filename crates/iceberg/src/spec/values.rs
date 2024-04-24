@@ -1262,7 +1262,13 @@ impl Literal {
                 PrimitiveType::Decimal {
                     precision: _,
                     scale: _,
-                } => todo!(),
+                } => {
+                    let mut v128 = 0_i128;
+                    bytes.iter().for_each(|b| {
+                        v128 = (v128 << 8) | *b as i128;
+                    });
+                    Ok(Literal::Primitive(PrimitiveLiteral::Decimal(v128)))
+                }
             },
             _ => Err(Error::new(
                 crate::ErrorKind::DataInvalid,
