@@ -768,13 +768,22 @@ impl ManifestMetadata {
                         "partition-spec is required in manifest metadata but not found",
                     )
                 })?;
-                serde_json::from_slice::<Vec<PartitionField>>(bs).map_err(|err| {
+                // It might just be a struct `PartitionField`.
+                match serde_json::from_slice::<Vec<PartitionField>>(bs).map_err(|err| {
                     Error::new(
                         ErrorKind::DataInvalid,
                         "Fail to parse partition spec in manifest metadata",
                     )
                     .with_source(err)
-                })?
+                }) {
+                    Ok(fields) => fields,
+                    Err(original_err) => {
+                        // Try as PartitionSpec (as in py-iceberg implementation).
+                        let spec = serde_json::from_slice::<PartitionSpec>(bs)
+                            .map_err(|_| original_err)?;
+                        spec.fields
+                    }
+                }
             };
             let spec_id = meta
                 .get("partition-spec-id")

@@ -295,7 +295,7 @@ mod _const_schema {
     };
     static ADDED_FILES_COUNT_V2: Lazy<NestedFieldRef> = {
         Lazy::new(|| {
-            Arc::new(NestedField::required(
+            Arc::new(NestedField::optional(
                 504,
                 "added_data_files_count",
                 Type::Primitive(PrimitiveType::Int),
@@ -313,7 +313,7 @@ mod _const_schema {
     };
     static EXISTING_FILES_COUNT_V2: Lazy<NestedFieldRef> = {
         Lazy::new(|| {
-            Arc::new(NestedField::required(
+            Arc::new(NestedField::optional(
                 505,
                 "existing_data_files_count",
                 Type::Primitive(PrimitiveType::Int),
@@ -331,7 +331,7 @@ mod _const_schema {
     };
     static DELETED_FILES_COUNT_V2: Lazy<NestedFieldRef> = {
         Lazy::new(|| {
-            Arc::new(NestedField::required(
+            Arc::new(NestedField::optional(
                 506,
                 "deleted_data_files_count",
                 Type::Primitive(PrimitiveType::Int),
@@ -811,9 +811,9 @@ pub(super) mod _serde {
         pub sequence_number: i64,
         pub min_sequence_number: i64,
         pub added_snapshot_id: i64,
-        pub added_data_files_count: i32,
-        pub existing_data_files_count: i32,
-        pub deleted_data_files_count: i32,
+        pub added_data_files_count: Option<i32>,
+        pub existing_data_files_count: Option<i32>,
+        pub deleted_data_files_count: Option<i32>,
         pub added_rows_count: i64,
         pub existing_rows_count: i64,
         pub deleted_rows_count: i64,
@@ -895,9 +895,18 @@ pub(super) mod _serde {
                 sequence_number: self.sequence_number,
                 min_sequence_number: self.min_sequence_number,
                 added_snapshot_id: self.added_snapshot_id,
-                added_data_files_count: Some(self.added_data_files_count.try_into()?),
-                existing_data_files_count: Some(self.existing_data_files_count.try_into()?),
-                deleted_data_files_count: Some(self.deleted_data_files_count.try_into()?),
+                added_data_files_count: self
+                    .added_data_files_count
+                    .map(TryInto::try_into)
+                    .transpose()?,
+                existing_data_files_count: self
+                    .existing_data_files_count
+                    .map(TryInto::try_into)
+                    .transpose()?,
+                deleted_data_files_count: self
+                    .deleted_data_files_count
+                    .map(TryInto::try_into)
+                    .transpose()?,
                 added_rows_count: Some(self.added_rows_count.try_into()?),
                 existing_rows_count: Some(self.existing_rows_count.try_into()?),
                 deleted_rows_count: Some(self.deleted_rows_count.try_into()?),
@@ -990,31 +999,16 @@ pub(super) mod _serde {
                 added_snapshot_id: value.added_snapshot_id,
                 added_data_files_count: value
                     .added_data_files_count
-                    .ok_or_else(|| {
-                        Error::new(
-                            crate::ErrorKind::DataInvalid,
-                            "added_data_files_count in ManifestFileV2 should be require",
-                        )
-                    })?
-                    .try_into()?,
+                    .map(TryInto::try_into)
+                    .transpose()?,
                 existing_data_files_count: value
                     .existing_data_files_count
-                    .ok_or_else(|| {
-                        Error::new(
-                            crate::ErrorKind::DataInvalid,
-                            "existing_data_files_count in ManifestFileV2 should be require",
-                        )
-                    })?
-                    .try_into()?,
+                    .map(TryInto::try_into)
+                    .transpose()?,
                 deleted_data_files_count: value
                     .deleted_data_files_count
-                    .ok_or_else(|| {
-                        Error::new(
-                            crate::ErrorKind::DataInvalid,
-                            "deleted_data_files_count in ManifestFileV2 should be require",
-                        )
-                    })?
-                    .try_into()?,
+                    .map(TryInto::try_into)
+                    .transpose()?,
                 added_rows_count: value
                     .added_rows_count
                     .ok_or_else(|| {
