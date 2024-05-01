@@ -89,6 +89,60 @@ impl Manifest {
         Ok(Self::new(metadata, entries))
     }
 
+    /// Converts the manifest into avro bytes.
+    pub fn into_avro_bytes(&self) -> Result<Vec<u8>> {
+        let partition_type = self
+            .metadata
+            .partition_spec
+            .partition_type(&self.metadata.schema)?;
+
+        let mut buf = Vec::new();
+
+        let (schema, entries) = match &self.metadata.format_version {
+            FormatVersion::V1 => {
+                let schema = manifest_schema_v1(partition_type.clone())?;
+
+                let entries = self
+                    .entries
+                    .iter()
+                    .map(|e| {
+                        let e =
+                            _serde::ManifestEntryV1::try_from(e.as_ref().clone(), &partition_type)?;
+                        Ok(to_value(e)?)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                (schema, entries)
+            }
+            FormatVersion::V2 => {
+                let schema = manifest_schema_v2(partition_type.clone())?;
+
+                let entries = self
+                    .entries
+                    .iter()
+                    .map(|e| {
+                        let e =
+                            _serde::ManifestEntryV2::try_from(e.as_ref().clone(), &partition_type)?;
+                        Ok(to_value(e)?)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                (schema, entries)
+            }
+        };
+
+        let mut writer = AvroWriter::new(&schema, &mut buf);
+
+        self.metadata
+            .into_map()?
+            .into_iter()
+            .try_for_each(|(k, v)| writer.add_user_metadata(k, v))?;
+
+        writer.extend(entries)?;
+
+        Ok(buf)
+    }
+
     /// Entries slice.
     #[inline]
     pub fn entries(&self) -> &[ManifestEntryRef] {
@@ -824,6 +878,28 @@ impl ManifestMetadata {
             format_version,
             content,
         })
+    }
+
+    fn into_map(&self) -> Result<HashMap<String, String>> {
+        let mut map = HashMap::with_capacity(5);
+
+        let schema = serde_json::to_string(&self.schema)?;
+        map.insert("schema".to_string(), schema);
+        map.insert("schema-id".to_string(), self.schema_id.to_string());
+
+        let partition_spec = serde_json::to_string(&self.partition_spec.fields)?;
+        map.insert("partition-spec".to_string(), partition_spec);
+        map.insert(
+            "partition-spec-id".to_string(),
+            self.partition_spec.spec_id.to_string(),
+        );
+
+        let format_version = serde_json::to_string(&self.format_version)?;
+        map.insert("format-version".to_string(), format_version);
+
+        map.insert("content".to_string(), self.content.to_string());
+
+        Ok(map)
     }
 }
 
